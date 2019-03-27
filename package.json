@@ -1,7 +1,6 @@
 {
   "name": "metisoft-aws-util",
-  "version": "0.0.0",
-  "updateVersion": "update-major-CS-37",
+  "version": "1.0.0",
   "description": "AWS Utilities",
   "main": "index.js",
   "scripts": {

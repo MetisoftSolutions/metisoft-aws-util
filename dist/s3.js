@@ -99,13 +99,22 @@ exports.uploadImagesToS3 = uploadImagesToS3;
 function uploadImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file) {
     const filePath = path_1.default.join(file.destination, file.filename);
     const dimensions = image_size_1.default(filePath);
-    const fileExtension = __getFileExtension(file.originalname);
-    let s3ObjectKey = '';
     const error = getConstraintsError(dimensions, file.size, constraints);
     if (error) {
         fs.unlinkSync(filePath);
         throw error;
     }
+    return uploadFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
+}
+exports.uploadImageToS3 = uploadImageToS3;
+function uploadFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucketName, file) {
+    const filePath = path_1.default.join(file.destination, file.filename);
+    if (maxFileSizeKb > 0 && (file.size / 1024 > maxFileSizeKb)) {
+        fs.unlinkSync(filePath);
+        throw new Error('FILE_SIZE_TOO_BIG');
+    }
+    const fileExtension = __getFileExtension(file.originalname);
+    let s3ObjectKey = '';
     const timestamp = moment_1.default().utc().format('YYYYMMDDTHHmmss');
     s3ObjectKey = `${s3DirectoryName}/${userId}.${timestamp}.${uuid_1.v4()}.${fileExtension}`;
     const s3Params = {
@@ -129,7 +138,56 @@ function uploadImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, f
         return s3ObjectKey;
     });
 }
-exports.uploadImageToS3 = uploadImageToS3;
+exports.uploadFileToS3 = uploadFileToS3;
+function getSizeOfObject(s3, bucketName, key) {
+    const args = {
+        Bucket: bucketName,
+        Key: key
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        s3.headObject(args, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data.ContentLength || 0);
+            }
+        });
+    });
+}
+exports.getSizeOfObject = getSizeOfObject;
+function getRangeOfObject(s3, bucketName, key, startByte, endByte) {
+    const args = {
+        Bucket: bucketName,
+        Key: key,
+        Range: `bytes=${startByte}-${endByte}`
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        s3.getObject(args, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data);
+            }
+        });
+    });
+}
+exports.getRangeOfObject = getRangeOfObject;
+function getChunkRequestFromRangeHeader(rangeHeader, fileSize) {
+    const pieces = rangeHeader.replace(/bytes=/, '').split('-');
+    const start = parseInt(pieces[0], 10);
+    const end = pieces[1] ?
+        parseInt(pieces[1], 10) :
+        fileSize - 1;
+    const chunkSize = (end - start) + 1;
+    return {
+        start,
+        end,
+        chunkSize
+    };
+}
+exports.getChunkRequestFromRangeHeader = getChunkRequestFromRangeHeader;
 function __getFileExtension(fileName) {
     const namePieces = fileName.split('.');
     return namePieces[namePieces.length - 1];

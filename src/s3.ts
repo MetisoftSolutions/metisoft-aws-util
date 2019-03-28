@@ -135,14 +135,35 @@ export function uploadImageToS3(
 ): Promise<string> {
   const filePath = path.join(file.destination, file.filename);
   const dimensions = imageSize(filePath);
-  const fileExtension = __getFileExtension(file.originalname);
-  let s3ObjectKey = '';
 
   const error = getConstraintsError(dimensions, file.size, constraints);
   if (error) {
     fs.unlinkSync(filePath);
     throw error;
   }
+
+  return uploadFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
+}
+
+
+
+export function uploadFileToS3(
+  s3: aws.S3,
+  userId: string,
+  maxFileSizeKb: number,
+  s3DirectoryName: string,
+  bucketName: string,
+  file: Express.Multer.File
+): Promise<string> {
+  const filePath = path.join(file.destination, file.filename);
+
+  if (maxFileSizeKb > 0 && (file.size / 1024 > maxFileSizeKb)) {
+    fs.unlinkSync(filePath);
+    throw new Error('FILE_SIZE_TOO_BIG');
+  }
+
+  const fileExtension = __getFileExtension(file.originalname);
+  let s3ObjectKey = '';
 
   const timestamp = moment().utc().format('YYYYMMDDTHHmmss');
   s3ObjectKey = `${s3DirectoryName}/${userId}.${timestamp}.${uuidV4()}.${fileExtension}`;
@@ -168,6 +189,68 @@ export function uploadImageToS3(
       fs.unlinkSync(filePath);
       return s3ObjectKey;
     });
+}
+
+
+
+export function getSizeOfObject(s3: aws.S3, bucketName: string, key: string) {
+  const args: aws.S3.HeadObjectRequest = {
+    Bucket: bucketName,
+    Key: key
+  };
+
+  return new Promise<number>((resolve, reject) => {
+    s3.headObject(args, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data.ContentLength || 0);
+      }
+    });
+  });
+}
+
+
+
+export function getRangeOfObject(s3: aws.S3, bucketName: string, key: string, startByte: number, endByte: number) {
+  const args: aws.S3.GetObjectRequest = {
+    Bucket: bucketName,
+    Key: key,
+    Range: `bytes=${startByte}-${endByte}`
+  };
+
+  return new Promise<aws.S3.GetObjectOutput>((resolve, reject) => {
+    s3.getObject(args, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+
+
+export interface IChunkRequest {
+  start: number;
+  end: number;
+  chunkSize: number;
+}
+
+export function getChunkRequestFromRangeHeader(rangeHeader: string, fileSize: number): IChunkRequest {
+  const pieces = rangeHeader.replace(/bytes=/, '').split('-')
+  const start = parseInt(pieces[0], 10);
+  const end = pieces[1] ?
+    parseInt(pieces[1], 10) :
+    fileSize - 1;
+  const chunkSize = (end - start) + 1;
+
+  return {
+    start,
+    end,
+    chunkSize
+  };
 }
 
 

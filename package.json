@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AWS Utilities",
   "main": "index.js",
+  "types": "dist/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

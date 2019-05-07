@@ -1,4 +1,3 @@
-import express from 'express';
 import * as aws from 'aws-sdk';
 export interface IInitAwsOptions {
     pathToAwsConfig: string;
@@ -9,4 +8,4 @@ export interface IInitAwsOptions {
 export interface IInitAwsReturn {
     s3: aws.S3;
 }
-export declare function initAws(app: express.Application, options: IInitAwsOptions): IInitAwsReturn;
+export declare function initAws(options: IInitAwsOptions): IInitAwsReturn;

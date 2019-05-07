@@ -1,4 +1,3 @@
-import express from 'express';
 import * as aws from 'aws-sdk';
 
 
@@ -14,7 +13,7 @@ export interface IInitAwsReturn {
   s3: aws.S3;
 }
 
-export function initAws(app: express.Application, options: IInitAwsOptions): IInitAwsReturn {
+export function initAws(options: IInitAwsOptions): IInitAwsReturn {
   aws.config.loadFromPath(options.pathToAwsConfig);
 
   const s3 = new aws.S3({
@@ -24,7 +23,5 @@ export function initAws(app: express.Application, options: IInitAwsOptions): IIn
     }
   });
 
-  return {
-    s3
-  };
+  return {s3};
 }

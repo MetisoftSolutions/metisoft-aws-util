@@ -8,7 +8,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const aws = __importStar(require("aws-sdk"));
-function initAws(app, options) {
+function initAws(options) {
     aws.config.loadFromPath(options.pathToAwsConfig);
     const s3 = new aws.S3({
         apiVersion: '2006-03-01',
@@ -16,9 +16,7 @@ function initAws(app, options) {
             Bucket: options.s3.bucketName
         }
     });
-    return {
-        s3
-    };
+    return { s3 };
 }
 exports.initAws = initAws;
 //# sourceMappingURL=aws.js.map

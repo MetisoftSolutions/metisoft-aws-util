@@ -71,6 +71,25 @@ function deleteObjectFromS3Bucket(s3, bucketName, url) {
     });
 }
 exports.deleteObjectFromS3Bucket = deleteObjectFromS3Bucket;
+function deleteObjectsFromS3Bucket(s3, bucketName, keys) {
+    const request = {
+        Bucket: bucketName,
+        Delete: {
+            Objects: lodash_1.default.map(keys, key => ({ Key: key }))
+        }
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        s3.deleteObjects(request, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data);
+            }
+        });
+    });
+}
+exports.deleteObjectsFromS3Bucket = deleteObjectsFromS3Bucket;
 function configMulterUploadObject(destinationPath, fileNamePrefix) {
     const storage = multer.diskStorage({
         destination: destinationPath,
@@ -81,10 +100,10 @@ function configMulterUploadObject(destinationPath, fileNamePrefix) {
     return multer.default({ storage });
 }
 exports.configMulterUploadObject = configMulterUploadObject;
-function uploadImagesToS3(s3, userId, constraints, s3DirectoryName, bucketName, files) {
-    return es6_promise_1.Promise.all(lodash_1.default.map(files, lodash_1.default.partial(uploadImageToS3, s3, userId, constraints, s3DirectoryName, bucketName)));
+function uploadMulterImagesToS3(s3, userId, constraints, s3DirectoryName, bucketName, files) {
+    return es6_promise_1.Promise.all(lodash_1.default.map(files, lodash_1.default.partial(uploadMulterImageToS3, s3, userId, constraints, s3DirectoryName, bucketName)));
 }
-exports.uploadImagesToS3 = uploadImagesToS3;
+exports.uploadMulterImagesToS3 = uploadMulterImagesToS3;
 /**
  *
  * @param userId
@@ -96,7 +115,7 @@ exports.uploadImagesToS3 = uploadImagesToS3;
  * @returns
  *    S3 object key used to store the file.
  */
-function uploadImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file) {
+function uploadMulterImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file) {
     const filePath = path_1.default.join(file.destination, file.filename);
     const dimensions = image_size_1.default(filePath);
     const error = getConstraintsError(dimensions, file.size, constraints);
@@ -104,10 +123,10 @@ function uploadImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, f
         fs.unlinkSync(filePath);
         throw error;
     }
-    return uploadFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
+    return uploadMulterFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
 }
-exports.uploadImageToS3 = uploadImageToS3;
-function uploadFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucketName, file) {
+exports.uploadMulterImageToS3 = uploadMulterImageToS3;
+function uploadMulterFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucketName, file) {
     const filePath = path_1.default.join(file.destination, file.filename);
     if (maxFileSizeKb > 0 && (file.size / 1024 > maxFileSizeKb)) {
         fs.unlinkSync(filePath);
@@ -138,7 +157,68 @@ function uploadFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucketName, 
         return s3ObjectKey;
     });
 }
+exports.uploadMulterFileToS3 = uploadMulterFileToS3;
+function uploadFileToS3(args) {
+    const request = {
+        ACL: 'private',
+        Bucket: args.bucketName,
+        Key: args.key,
+        Body: args.binaryContents || args.textContents || ""
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        args.s3.putObject(request, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data);
+            }
+        });
+    })
+        .then(() => args.key);
+}
 exports.uploadFileToS3 = uploadFileToS3;
+function downloadFileFromS3(args) {
+    const request = {
+        Bucket: args.bucketName,
+        Key: args.key
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        args.s3.getObject(request, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data);
+            }
+        });
+    });
+}
+exports.downloadFileFromS3 = downloadFileFromS3;
+function listFilesInDirectory(args) {
+    const request = {
+        Bucket: args.bucketName,
+        Prefix: args.directoryName
+    };
+    return new es6_promise_1.Promise((resolve, reject) => {
+        args.s3.listObjectsV2(request, (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(data);
+            }
+        });
+    })
+        .then(retVal => lodash_1.default.compact(lodash_1.default.map(retVal.Contents, objectDescriptor => (objectDescriptor.Key || ''))))
+        .then(fileList => lodash_1.default.compact(lodash_1.default.map(fileList, fileName => {
+        if (fileName.startsWith(args.directoryName)) {
+            return fileName.slice(args.directoryName.length);
+        }
+        return fileName;
+    })));
+}
+exports.listFilesInDirectory = listFilesInDirectory;
 function getSizeOfObject(s3, bucketName, key) {
     const args = {
         Bucket: bucketName,

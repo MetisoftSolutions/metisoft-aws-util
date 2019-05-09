@@ -84,6 +84,27 @@ export function deleteObjectFromS3Bucket(s3: aws.S3, bucketName: string, url: st
 
 
 
+export function deleteObjectsFromS3Bucket(s3: aws.S3, bucketName: string, keys: string[]) {
+  const request: aws.S3.DeleteObjectsRequest = {
+    Bucket: bucketName,
+    Delete: {
+      Objects: _.map(keys, key => ({Key: key}))
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    s3.deleteObjects(request, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+
+
 export function configMulterUploadObject(
   destinationPath: string,
   fileNamePrefix: string
@@ -99,7 +120,7 @@ export function configMulterUploadObject(
 
 
 
-export function uploadImagesToS3(
+export function uploadMulterImagesToS3(
   s3: aws.S3,
   userId: string,
   constraints: IImageConstraints,
@@ -108,7 +129,7 @@ export function uploadImagesToS3(
   files: Express.Multer.File[]
 ): Promise<string[]> {
   return Promise.all(
-    _.map(files, _.partial(uploadImageToS3, s3, userId, constraints, s3DirectoryName, bucketName))
+    _.map(files, _.partial(uploadMulterImageToS3, s3, userId, constraints, s3DirectoryName, bucketName))
   );
 }
 
@@ -125,7 +146,7 @@ export function uploadImagesToS3(
  * @returns
  *    S3 object key used to store the file.
  */
-export function uploadImageToS3(
+export function uploadMulterImageToS3(
   s3: aws.S3,
   userId: string,
   constraints: IImageConstraints,
@@ -142,12 +163,12 @@ export function uploadImageToS3(
     throw error;
   }
 
-  return uploadFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
+  return uploadMulterFileToS3(s3, userId, 0, s3DirectoryName, bucketName, file);
 }
 
 
 
-export function uploadFileToS3(
+export function uploadMulterFileToS3(
   s3: aws.S3,
   userId: string,
   maxFileSizeKb: number,
@@ -189,6 +210,101 @@ export function uploadFileToS3(
       fs.unlinkSync(filePath);
       return s3ObjectKey;
     });
+}
+
+
+
+export interface IUploadFileToS3Args {
+  s3: aws.S3;
+  bucketName: string;
+  key: string;
+
+  /**
+   * If both this and `textContents` are given, this argument takes precedence.
+   */
+  binaryContents?: Buffer;
+
+  textContents?: string;
+}
+
+export function uploadFileToS3(args: IUploadFileToS3Args): Promise<string> {
+  const request: aws.S3.PutObjectRequest = {
+    ACL: 'private',
+    Bucket: args.bucketName,
+    Key: args.key,
+    Body: args.binaryContents || args.textContents || ""
+  };
+
+  return new Promise((resolve, reject) => {
+      args.s3.putObject(request, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data);
+        }
+      });
+    })
+
+    .then(() => args.key);
+}
+
+
+
+export interface IDownloadFileFromS3Args {
+  s3: aws.S3;
+  bucketName: string;
+  key: string;
+}
+
+export function downloadFileFromS3(args: IDownloadFileFromS3Args) {
+  const request: aws.S3.GetObjectRequest = {
+    Bucket: args.bucketName,
+    Key: args.key
+  };
+
+  return new Promise<aws.S3.GetObjectOutput>((resolve, reject) => {
+    args.s3.getObject(request, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    })
+  });
+}
+
+
+
+export interface IListFilesInDirectoryArgs {
+  s3: aws.S3;
+  bucketName: string;
+  directoryName: string;
+}
+
+export function listFilesInDirectory(args: IListFilesInDirectoryArgs) {
+  const request: aws.S3.ListObjectsV2Request = {
+    Bucket: args.bucketName,
+    Prefix: args.directoryName
+  };
+
+  return new Promise<aws.S3.ListObjectsV2Output>((resolve, reject) => {
+      args.s3.listObjectsV2(request, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data);
+        }
+      });
+    })
+
+    .then(retVal => _.compact(_.map(retVal.Contents, objectDescriptor => (objectDescriptor.Key || ''))))
+
+    .then(fileList => _.compact(_.map(fileList, fileName => {
+      if (fileName.startsWith(args.directoryName)) {
+        return fileName.slice(args.directoryName.length);
+      }
+      return fileName;
+    })));
 }
 
 

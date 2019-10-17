@@ -218,6 +218,7 @@ export interface IUploadFileToS3Args {
   s3: aws.S3;
   bucketName: string;
   key: string;
+  acl?: aws.S3.PutObjectRequest['ACL'];
 
   /**
    * If both this and `textContents` are given, this argument takes precedence.
@@ -229,7 +230,7 @@ export interface IUploadFileToS3Args {
 
 export function uploadFileToS3(args: IUploadFileToS3Args): Promise<string> {
   const request: aws.S3.PutObjectRequest = {
-    ACL: 'private',
+    ACL: args.acl || 'private',
     Bucket: args.bucketName,
     Key: args.key,
     Body: args.binaryContents || args.textContents || ""

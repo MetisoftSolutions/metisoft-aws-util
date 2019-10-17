@@ -160,7 +160,7 @@ function uploadMulterFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucket
 exports.uploadMulterFileToS3 = uploadMulterFileToS3;
 function uploadFileToS3(args) {
     const request = {
-        ACL: 'private',
+        ACL: args.acl || 'private',
         Bucket: args.bucketName,
         Key: args.key,
         Body: args.binaryContents || args.textContents || ""

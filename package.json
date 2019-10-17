@@ -1,6 +1,6 @@
 {
   "name": "metisoft-aws-util",
-  "version": "4.0.1-update-patch",
+  "version": "4.0.2",
   "description": "AWS Utilities",
   "main": "index.js",
   "types": "dist/index.ts",
@@ -32,5 +32,8 @@
     "moment": "^2.24.0",
     "multer": "^1.4.1",
     "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "metisoft-deploy-tools": "git+https://github.com/MetisoftSolutions/metisoft-deploy-tools.git#semver:^2.1.2"
   }
 }

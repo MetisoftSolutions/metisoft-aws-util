@@ -45,6 +45,7 @@ export interface IUploadFileToS3Args {
     s3: aws.S3;
     bucketName: string;
     key: string;
+    acl?: aws.S3.PutObjectRequest['ACL'];
     /**
      * If both this and `textContents` are given, this argument takes precedence.
      */

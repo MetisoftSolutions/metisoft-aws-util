@@ -1,4 +1,5 @@
 /// <reference types="express-serve-static-core" />
+/// <reference types="node" />
 import { Promise } from 'es6-promise';
 import * as multer from 'multer';
 import * as aws from 'aws-sdk';
@@ -25,8 +26,8 @@ export declare function collapseRequestFilesIntoArray(requestFiles: Express.Requ
  *  the URL of the resource
  */
 export declare function deleteObjectFromS3Bucket(s3: aws.S3, bucketName: string, url: string): Promise<aws.S3.DeleteObjectOutput | null>;
-export declare function deleteObjectsFromS3Bucket(s3: aws.S3, bucketName: string, keys: string[]): Promise<{}>;
-export declare function configMulterUploadObject(destinationPath: string, fileNamePrefix: string): multer.Instance;
+export declare function deleteObjectsFromS3Bucket(s3: aws.S3, bucketName: string, keys: string[]): Promise<unknown>;
+export declare function configMulterUploadObject(destinationPath: string, fileNamePrefix: string): multer.Multer;
 export declare function uploadMulterImagesToS3(s3: aws.S3, userId: string, constraints: IImageConstraints, s3DirectoryName: string, bucketName: string, files: Express.Multer.File[]): Promise<string[]>;
 /**
  *
@@ -50,6 +51,7 @@ export interface IUploadFileToS3Args {
      * If both this and `textContents` are given, this argument takes precedence.
      */
     binaryContents?: Buffer;
+    contentType?: string;
     textContents?: string;
 }
 export declare function uploadFileToS3(args: IUploadFileToS3Args): Promise<string>;

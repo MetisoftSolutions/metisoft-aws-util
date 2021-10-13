@@ -1,20 +1,33 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseExtraArgs = exports.getConstraintsError = exports.getChunkRequestFromRangeHeader = exports.getRangeOfObject = exports.getSizeOfObject = exports.listFilesInDirectory = exports.downloadFileFromS3 = exports.uploadFileToS3 = exports.uploadMulterFileToS3 = exports.uploadMulterImageToS3 = exports.uploadMulterImagesToS3 = exports.configMulterUploadObject = exports.deleteObjectsFromS3Bucket = exports.deleteObjectFromS3Bucket = exports.collapseRequestFilesIntoArray = exports.getS3KeyFromUrl = exports.getUrlOfS3Object = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const path_1 = __importDefault(require("path"));
 const es6_promise_1 = require("es6-promise");
 const multer = __importStar(require("multer"));
-const image_size_1 = __importDefault(require("image-size"));
+const image_size_1 = require("image-size");
 const fs = __importStar(require("fs"));
 const moment_1 = __importDefault(require("moment"));
 const uuid_1 = require("uuid");
@@ -94,14 +107,14 @@ function configMulterUploadObject(destinationPath, fileNamePrefix) {
     const storage = multer.diskStorage({
         destination: destinationPath,
         filename: (req, file, callback) => {
-            callback(null, `${fileNamePrefix}-${uuid_1.v4()}`);
+            callback(null, `${fileNamePrefix}-${(0, uuid_1.v4)()}`);
         }
     });
     return multer.default({ storage });
 }
 exports.configMulterUploadObject = configMulterUploadObject;
 function uploadMulterImagesToS3(s3, userId, constraints, s3DirectoryName, bucketName, files) {
-    return es6_promise_1.Promise.all(lodash_1.default.map(files, lodash_1.default.partial(uploadMulterImageToS3, s3, userId, constraints, s3DirectoryName, bucketName)));
+    return es6_promise_1.Promise.all(lodash_1.default.map(files, file => uploadMulterImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file)));
 }
 exports.uploadMulterImagesToS3 = uploadMulterImagesToS3;
 /**
@@ -116,9 +129,13 @@ exports.uploadMulterImagesToS3 = uploadMulterImagesToS3;
  *    S3 object key used to store the file.
  */
 function uploadMulterImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file) {
+    var _a, _b;
     const filePath = path_1.default.join(file.destination, file.filename);
-    const dimensions = image_size_1.default(filePath);
-    const error = getConstraintsError(dimensions, file.size, constraints);
+    const dimensions = (0, image_size_1.imageSize)(filePath);
+    const error = getConstraintsError({
+        width: (_a = dimensions.width) !== null && _a !== void 0 ? _a : 0,
+        height: (_b = dimensions.height) !== null && _b !== void 0 ? _b : 0
+    }, file.size, constraints);
     if (error) {
         fs.unlinkSync(filePath);
         throw error;
@@ -134,8 +151,8 @@ function uploadMulterFileToS3(s3, userId, maxFileSizeKb, s3DirectoryName, bucket
     }
     const fileExtension = __getFileExtension(file.originalname);
     let s3ObjectKey = '';
-    const timestamp = moment_1.default().utc().format('YYYYMMDDTHHmmss');
-    s3ObjectKey = `${s3DirectoryName}/${userId}.${timestamp}.${uuid_1.v4()}.${fileExtension}`;
+    const timestamp = (0, moment_1.default)().utc().format('YYYYMMDDTHHmmss');
+    s3ObjectKey = `${s3DirectoryName}/${userId}.${timestamp}.${(0, uuid_1.v4)()}.${fileExtension}`;
     const s3Params = {
         ACL: 'public-read',
         Bucket: bucketName,
@@ -163,7 +180,8 @@ function uploadFileToS3(args) {
         ACL: args.acl || 'private',
         Bucket: args.bucketName,
         Key: args.key,
-        Body: args.binaryContents || args.textContents || ""
+        Body: args.binaryContents || args.textContents || "",
+        ContentType: args.contentType
     };
     return new es6_promise_1.Promise((resolve, reject) => {
         args.s3.putObject(request, (err, data) => {

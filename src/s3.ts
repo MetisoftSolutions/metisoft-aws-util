@@ -2,7 +2,7 @@ import _ from 'lodash'
 import path from 'path';
 import { Promise } from 'es6-promise';
 import * as multer from 'multer';
-import imageSize from 'image-size';
+import { imageSize } from 'image-size';
 import * as fs from 'fs';
 import * as aws from 'aws-sdk';
 import moment from 'moment';
@@ -129,7 +129,7 @@ export function uploadMulterImagesToS3(
   files: Express.Multer.File[]
 ): Promise<string[]> {
   return Promise.all(
-    _.map(files, _.partial(uploadMulterImageToS3, s3, userId, constraints, s3DirectoryName, bucketName))
+    _.map(files, file => uploadMulterImageToS3(s3, userId, constraints, s3DirectoryName, bucketName, file))
   );
 }
 
@@ -157,7 +157,10 @@ export function uploadMulterImageToS3(
   const filePath = path.join(file.destination, file.filename);
   const dimensions = imageSize(filePath);
 
-  const error = getConstraintsError(dimensions, file.size, constraints);
+  const error = getConstraintsError({
+    width: dimensions.width ?? 0,
+    height: dimensions.height ?? 0
+  }, file.size, constraints);
   if (error) {
     fs.unlinkSync(filePath);
     throw error;

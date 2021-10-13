@@ -1,6 +1,7 @@
 {
   "name": "metisoft-aws-util",
   "version": "4.0.4",
+  "versionUpdate": "update-patch-CON-377",
   "description": "AWS Utilities",
   "main": "index.js",
   "types": "dist/index.ts",

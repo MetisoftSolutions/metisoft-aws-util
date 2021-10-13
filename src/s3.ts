@@ -225,6 +225,7 @@ export interface IUploadFileToS3Args {
    */
   binaryContents?: Buffer;
 
+  contentType?: string;
   textContents?: string;
 }
 
@@ -233,7 +234,8 @@ export function uploadFileToS3(args: IUploadFileToS3Args): Promise<string> {
     ACL: args.acl || 'private',
     Bucket: args.bucketName,
     Key: args.key,
-    Body: args.binaryContents || args.textContents || ""
+    Body: args.binaryContents || args.textContents || "",
+    ContentType: args.contentType
   };
 
   return new Promise((resolve, reject) => {
